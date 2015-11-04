@@ -71,7 +71,7 @@ func (r *Release) LatestRelease(includePre bool) *Version {
 }
 
 var args struct {
-	Product string `arg:"required"`
+	Product string
 	Version string
 	URL     bool
 }
@@ -79,6 +79,17 @@ var args struct {
 func main() {
 	arg.MustParse(&args)
 
+	if args.Product == "" {
+		rs, err := fetchReleases()
+		if err != nil {
+			fmt.Printf("Failed to fetch releases for %s: %s", args.Product, err)
+			os.Exit(1)
+		}
+		for r := range rs {
+			fmt.Println(r)
+		}
+		os.Exit(0)
+	}
 	r, err := fetchRelease(args.Product)
 	if err != nil {
 		fmt.Printf("Failed to fetch releases for %s: %s", args.Product, err)
@@ -94,6 +105,22 @@ func main() {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+func fetchReleases() (map[string]Release, error) {
+	url := releaseURL + "index.json"
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from %s: %s", url, err)
+	}
+	defer resp.Body.Close()
+
+	var rs map[string]Release
+	err = json.NewDecoder(resp.Body).Decode(&rs)
+	if err != nil {
+		return nil, err
+	}
+	return rs, nil
 }
 
 func fetchRelease(product string) (*Release, error) {
